@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMI Calculator Offline</title>
+    <!-- Tailwind CSS for Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React and Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #4f46e5;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        // Icons Mockup for browser environment
+        const IndianRupee = () => <span>₹</span>;
+        const Percent = () => <span>%</span>;
+        const Calculator = () => <span>📊</span>;
+        const CalendarDays = () => <span>📅</span>;
+        const CalendarClock = () => <span>🕒</span>;
+
+        function App() {
+            const [loan, setLoan] = useState(500000);
+            const [rate, setRate] = useState(10.0);
+            const [tenure, setTenure] = useState(24);
+            const [tenureType, setTenureType] = useState('months');
+            const [calcMethod, setCalcMethod] = useState('reducing');
+
+            const today = new Date();
+            const defaultEmiDate = new Date();
+            defaultEmiDate.setDate(today.getDate() + 45);
+            const [disbDate, setDisbDate] = useState(today.toISOString().split('T')[0]);
+            const [emiDate, setEmiDate] = useState(defaultEmiDate.toISOString().split('T')[0]);
+
+            const effectiveTenureMonths = tenureType === 'years' ? tenure * 12 : tenure;
+            const r = rate / 12 / 100;
+            const n = effectiveTenureMonths;
+
+            const emiReducing = (r === 0 || n === 0) 
+                ? (n > 0 ? loan / n : 0) 
+                : (loan * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+
+            const flatInterest = (loan * rate * (n / 12)) / 100;
+            const totalFlatPayable = loan + flatInterest;
+            const emiFlat = n > 0 ? totalFlatPayable / n : 0;
+
+            const activeEmi = calcMethod === 'reducing' ? emiReducing : emiFlat;
+
+            const d1 = new Date(disbDate);
+            const d2 = new Date(emiDate);
+            const timeDiff = d2.getTime() - d1.getTime();
+            const totalDays = Math.ceil(timeDiff / (1000 * 3600 * 24));
+            const isValidDate = totalDays >= 0;
+            const extraDays = isValidDate ? Math.max(0, totalDays - 30) : 0;
+            const extraInterest = (loan * rate * extraDays) / (365 * 100);
+            const firstEmi = activeEmi + extraInterest;
+
+            const formatCurrency = (num) => {
+                return new Intl.NumberFormat('en-IN', {
+                    style: 'currency',
+                    currency: 'INR',
+                    maximumFractionDigits: 0,
+                }).format(num || 0);
+            };
+
+            return (
+                <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+                    <div className="max-w-5xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row border border-white">
+                        <div className="flex-[1.2] p-8 bg-white">
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="p-3 bg-indigo-600 rounded-xl text-white shadow-lg">
+                                    <Calculator />
+                                </div>
+                                <h1 className="text-2xl font-black text-slate-900 tracking-tight">EMI Calculator</h1>
+                            </div>
+
+                            <div className="space-y-8">
+                                <div className="flex p-1 bg-slate-100 rounded-xl">
+                                    <button onClick={() => setCalcMethod('reducing')} className={`flex-1 py-2 text-sm font-bold rounded-lg ${calcMethod === 'reducing' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Reducing</button>
+                                    <button onClick={() => setCalcMethod('flat')} className={`flex-1 py-2 text-sm font-bold rounded-lg ${calcMethod === 'flat' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Flat Rate</button>
+                                </div>
+
+                                <div>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Loan Amount</label>
+                                        <input type="number" value={loan} onChange={(e) => setLoan(Number(e.target.value))} className="w-32 p-2 bg-slate-50 border-2 border-slate-100 rounded-xl font-bold text-indigo-600 text-right" />
+                                    </div>
+                                    <input type="range" min="10000" max="5000000" step="10000" value={loan} onChange={(e) => setLoan(Number(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
+                                </div>
+
+                                <div>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Rate (%)</label>
+                                        <input type="number" value={rate} onChange={(e) => setRate(Math.min(30, Number(e.target.value)))} className="w-20 p-2 bg-slate-50 border-2 border-slate-100 rounded-xl font-bold text-indigo-600 text-right" />
+                                    </div>
+                                    <input type="range" min="1" max="30" step="0.1" value={rate} onChange={(e) => setRate(Number(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Disb. Date</label>
+                                        <input type="date" value={disbDate} onChange={(e) => setDisbDate(e.target.value)} className="w-full p-2 bg-slate-50 border-2 border-slate-100 rounded-xl font-bold text-slate-700" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">First EMI Date</label>
+                                        <input type="date" value={emiDate} onChange={(e) => setEmiDate(e.target.value)} className={`w-full p-2 bg-slate-50 border-2 rounded-xl font-bold ${!isValidDate ? 'border-red-400' : 'border-slate-100'}`} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 bg-slate-900 p-8 text-white flex flex-col justify-center">
+                            <h2 className="text-sm font-bold text-indigo-400 uppercase tracking-widest mb-6">Result</h2>
+                            <div className="space-y-6">
+                                <div>
+                                    <p className="text-slate-400 text-sm">Monthly EMI</p>
+                                    <p className="text-4xl font-black text-white">{formatCurrency(activeEmi)}</p>
+                                </div>
+                                <div className="p-4 bg-indigo-600 rounded-2xl">
+                                    <p className="text-xs font-bold text-indigo-100 uppercase mb-1">First Installment</p>
+                                    <p className="text-2xl font-black">{formatCurrency(firstEmi)}</p>
+                                    {isValidDate && <p className="text-[10px] mt-2 opacity-80">Includes {extraDays} days extra interest</p>}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
